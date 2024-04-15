@@ -1,0 +1,15 @@
+---
+ansible_user: username
+home_dir: "/home/{{ ansible_user }}"
+file: "postgres_exporter-0.15.0.linux-amd64.tar.gz"
+env_file: "pg_exporter.env"
+exporter_dir: "/opt/postgres_exporter"
+exporter_user: postgres_exporter
+service: "{{ exporter_user }}.service"
+service_path: /etc/systemd/system
+exec_path: /usr/local/bin
+db_name: postgres
+db_port: 5432
+owner: postgres
+host: localhost
+sslmode: disable

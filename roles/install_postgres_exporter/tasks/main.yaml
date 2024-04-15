@@ -1,0 +1,79 @@
+---
+# Экспортируем на удалённый узел установочный пакет
+- name: Copy tar.gz file
+  become: true
+  ansible.builtin.unarchive:
+    src: "{{ file }}"
+    dest: "{{ home_dir }}/"
+    list_files: true
+    mode: "0644"
+  register: directory_name
+# Создаём директории для конфигурационных файлов
+- name: Create {{ exporter_dir }} directory
+  become: true
+  ansible.builtin.file:
+    path: "{{ exporter_dir }}"
+    state: directory
+    mode: '0700'
+# Перемещаем темплейт EnvironmentFile
+- name: Send {{ env_file }}
+  become: true
+  ansible.builtin.template:
+    src: "{{ env_file }}"
+    dest: "{{ exporter_dir }}"
+    owner: "{{ owner }}"
+    group: "{{ owner }}"
+    mode: "0644"
+# Перемещаем темплейт service
+- name: Send {{ service }}
+  become: true
+  ansible.builtin.template:
+    src: "{{ service }}"
+    dest: "{{ service_path }}/{{ service }}"
+    owner: "root"
+    group: "root"
+    mode: "0644"
+# Перемещаем исполняемый файл
+- name: Send executable file into {{ exec_path }}
+  become: true
+  ansible.builtin.copy:
+    src: "{{ home_dir }}/{{ directory_name.files[0] }}{{ exporter_user }}"
+    dest: "{{ exec_path }}/{{ exporter_user }}"
+    owner: "{{ owner }}"
+    group: "{{ owner }}"
+    mode: "0755"
+    remote_src: true
+# Создаём пользователя
+- name: Create role {{ exporter_user }}
+  become: true
+  become_user: "{{ owner }}"
+  community.postgresql.postgresql_user:
+    db: "{{ owner }}"
+    port: "{{ db_port }}"
+    ssl_mode: require
+    ssl_cert: /home/postgres/ssl/client.crt
+    ssl_key: /home/postgres/ssl/client.key
+    login_host: 127.0.0.1
+    name: "{{ exporter_user }}"
+    password: "{{ passwd2 }}"
+# Даём права для сбора метрик
+- name: Grant role pg_monitor to {{ exporter_user }}
+  become: true
+  become_user: "{{ owner }}"
+  community.postgresql.postgresql_membership:
+    db: "{{ owner }}"
+    port: "{{ db_port }}"
+    ssl_mode: require
+    ssl_cert: /home/postgres/ssl/client.crt
+    ssl_key: /home/postgres/ssl/client.key
+    login_host: 127.0.0.1
+    group: pg_monitor
+    target_roles: "{{ exporter_user }}"
+    state: present
+# Запускаем сервис
+- name: Restart {{ exporter_user }}
+  become: true
+  ansible.builtin.systemd_service:
+    name: "{{ service }}"
+    daemon_reload: true
+    state: started

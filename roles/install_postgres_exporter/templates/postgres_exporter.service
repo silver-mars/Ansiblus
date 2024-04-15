@@ -1,0 +1,15 @@
+[Unit]
+Description=Prometheus PostgreSQL Exporter
+Documentation=https://github.com/wrouesnel/postgres_exporter
+After=network.target
+
+[Service]
+Type=simple
+Restart=always
+User={{ owner }}
+Group={{ owner }}
+EnvironmentFile={{ exporter_dir }}/{{ env_file }}
+ExecStart={{ exec_path }}/{{ exporter_user }}
+
+[Install]
+WantedBy=multi-user.target
